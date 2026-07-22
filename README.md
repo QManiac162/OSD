@@ -1,1 +1,16 @@
 # OSD
+This project is an **open-source, cross-platform music downloader** that automatically fetches high-quality audio from URLs (YouTube, Spotify, etc.) and enriches the MP3 file with **fully-synchronized lyrics** and metadata. The key innovations are:
+
+- **Automated Lyrics Sync:** Uses ASR (OpenAI Whisper) and forced-alignment (Gentle/Montreal) to align lyrics.  
+- **Multilingual Support:** Detects song language; for non-English songs, it embeds the original lyrics with a line-by-line English translation below each line.  
+- **Rich Metadata:** Embeds cover art, tags (title, artist, album), and synchronized lyrics (ID3 SYLT frames) directly into the MP3.  
+- **Modular Pipeline:** Each stage (download, detect, transcribe, align, translate, format, embed) is a separate module with well-defined inputs/outputs. This makes the tool configurable and extendable.  
+- **GUI & Executable:** Provides a minimal cross-platform GUI (e.g. an Electron or Tauri front-end with a Python backend). The final tool is packaged as a single executable for Windows/macOS/Linux.
+
+**Pipeline Overview:** The user pastes a song URL; yt-dlp (or SpotDL for Spotify) downloads the audio. Whisper transcribes and detects language. Original lyrics (from existing LRC or subtitles) are fetched if possible; otherwise Whisper’s transcription is used. We align the text to audio with a forced-aligner (MFA or Gentle) to get timestamps. If the song is not English, we translate each line via MarianMT (e.g. Helsinki-NLP models) and interleave translation lines. Finally we generate a synchronized LRC (SYLT) and embed it (with cover art) into the MP3 via Mutagen.
+
+**Key Tools/Models:** yt-dlp for downloading; OpenAI Whisper (tiny/base/small/medium/large) for transcription and language detection; Gentle or Montreal Forced Aligner for precise timing; Helsinki-NLP MarianMT (or M2M100/NLLB) for translation; Mutagen for ID3 tagging. For lyrics retrieval, we leverage lyrics providers like Genius/AZLyrics/Musixmatch as a first attempt (similar to SpotDL), falling back to ASR if needed.
+
+**Implementation Strategy:** We design a **modular pipeline** (see architecture diagram). Each stage has a clear interface (e.g. pass in audio & lyrics, get timestamps and formatted LRC). This allows swapping components (e.g. Whisper → WhisperX or whisper-turbo) and adding new providers. Configuration (YAML/JSON) lets users set models, languages, output paths, etc. We will include example commands and code snippets for each module. The project will have a simple Electron (web UI + Python sidecar) or Tauri (Rust or Python backend) frontend, with VS Code tasks for development, and CI pipelines for testing each stage. The final binaries (via PyInstaller or Tauri bundler) will be cross-OS.
+
+All software and models used are open source (MIT/Apache licenses). We’ll license the project under MIT (permissive) and document privacy (no user data sent externally; all processing is offline). Performance-wise, we recommend using Whisper *base/small* on CPU and *medium/large* on GPU, and MarianMT “tiny” translators for speed. A fallback logic will rank lyric sources (official LRC > YouTube captions > Whisper) by confidence and choose the best.
